@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent-Native — Solo Builder Onboarding</title>
+    <style>
+      :root {
+        --bg: #0a0b0f;
+        --bg-soft: #11131a;
+        --panel: #14161f;
+        --panel-2: #1a1d28;
+        --line: #262a38;
+        --line-soft: #1d2030;
+        --ink: #e8eaf2;
+        --ink-dim: #aab0c4;
+        --ink-faint: #6b7290;
+        --acc: #7c5cff;
+        --acc-2: #19e3b1;
+        --acc-3: #ff8a5c;
+        --warn: #ffd166;
+        --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+        --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui,
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: radial-gradient(
+            1200px 700px at 80% -10%,
+            rgba(124, 92, 255, 0.13),
+            transparent 60%
+          ),
+          radial-gradient(
+            900px 600px at -10% 10%,
+            rgba(25, 227, 177, 0.08),
+            transparent 55%
+          ),
+          var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--acc-2);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 0.86em;
+        background: rgba(124, 92, 255, 0.12);
+        color: #d7ccff;
+        padding: 0.1em 0.4em;
+        border-radius: 5px;
+        border: 1px solid rgba(124, 92, 255, 0.18);
+      }
+
+      /* ---- Layout ---- */
+      .wrap {
+        display: grid;
+        grid-template-columns: 240px minmax(0, 1fr);
+        max-width: 1180px;
+        margin: 0 auto;
+        gap: 0;
+      }
+      nav.toc {
+        position: sticky;
+        top: 0;
+        align-self: start;
+        height: 100vh;
+        padding: 34px 20px 34px 28px;
+        border-right: 1px solid var(--line-soft);
+        overflow-y: auto;
+      }
+      nav.toc .brand {
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--acc);
+        margin-bottom: 4px;
+      }
+      nav.toc .sub {
+        font-size: 12px;
+        color: var(--ink-faint);
+        margin-bottom: 26px;
+      }
+      nav.toc ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        counter-reset: s;
+      }
+      nav.toc li {
+        counter-increment: s;
+        margin: 2px 0;
+      }
+      nav.toc a {
+        display: block;
+        color: var(--ink-dim);
+        font-size: 13px;
+        padding: 5px 10px 5px 30px;
+        border-radius: 7px;
+        position: relative;
+        transition: 0.15s;
+      }
+      nav.toc a::before {
+        content: counter(s, decimal-leading-zero);
+        position: absolute;
+        left: 8px;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--ink-faint);
+        top: 7px;
+      }
+      nav.toc a:hover {
+        background: var(--panel);
+        color: var(--ink);
+        text-decoration: none;
+      }
+      main {
+        padding: 0 0 120px;
+        min-width: 0;
+      }
+
+      /* ---- Hero ---- */
+      header.hero {
+        padding: 64px 48px 44px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--acc-2);
+        border: 1px solid rgba(25, 227, 177, 0.25);
+        background: rgba(25, 227, 177, 0.06);
+        padding: 5px 11px;
+        border-radius: 100px;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--acc-2);
+        box-shadow: 0 0 10px var(--acc-2);
+      }
+      header.hero h1 {
+        font-size: 44px;
+        line-height: 1.08;
+        margin: 20px 0 10px;
+        letter-spacing: -0.02em;
+        font-weight: 760;
+      }
+      header.hero h1 .g {
+        background: linear-gradient(100deg, var(--acc) 10%, var(--acc-2) 90%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      header.hero p.lede {
+        font-size: 18px;
+        color: var(--ink-dim);
+        max-width: 60ch;
+        margin: 0 0 26px;
+      }
+      .meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chip {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--ink-dim);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        padding: 6px 11px;
+        border-radius: 8px;
+      }
+      .chip b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* ---- Sections ---- */
+      section {
+        padding: 46px 48px;
+        border-bottom: 1px solid var(--line-soft);
+        scroll-margin-top: 12px;
+      }
+      .sec-id {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--acc);
+        letter-spacing: 0.1em;
+      }
+      section h2 {
+        font-size: 26px;
+        margin: 6px 0 6px;
+        letter-spacing: -0.01em;
+        font-weight: 700;
+      }
+      section > p {
+        color: var(--ink-dim);
+        max-width: 72ch;
+      }
+      h3 {
+        font-size: 16px;
+        margin: 28px 0 10px;
+        color: var(--ink);
+      }
+
+      /* ---- Thesis callout ---- */
+      .thesis {
+        border: 1px solid rgba(124, 92, 255, 0.3);
+        background: linear-gradient(
+          180deg,
+          rgba(124, 92, 255, 0.1),
+          rgba(124, 92, 255, 0.02)
+        );
+        border-radius: 16px;
+        padding: 24px 26px;
+        margin: 22px 0;
+      }
+      .thesis .big {
+        font-size: 19px;
+        font-weight: 650;
+        color: #fff;
+        margin: 0 0 8px;
+      }
+      .thesis p {
+        margin: 0;
+        color: var(--ink-dim);
+      }
+
+      /* ---- Code blocks ---- */
+      pre {
+        background: #0c0e14;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        line-height: 1.65;
+        color: #cdd3e6;
+        margin: 16px 0;
+      }
+      pre .c {
+        color: #5d6580;
+      }
+      pre .k {
+        color: #c792ff;
+      }
+      pre .s {
+        color: #8ee6c0;
+      }
+      pre .f {
+        color: #82b1ff;
+      }
+      pre.diagram {
+        color: var(--ink-dim);
+        font-size: 11.5px;
+        line-height: 1.5;
+      }
+
+      /* ---- Cards grid ---- */
+      .grid {
+        display: grid;
+        gap: 14px;
+        margin: 22px 0;
+      }
+      .grid.c3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .grid.c2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 18px;
+        transition: 0.18s;
+      }
+      .card:hover {
+        border-color: rgba(124, 92, 255, 0.4);
+        transform: translateY(-2px);
+      }
+      .card .tag {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--acc);
+      }
+      .card h4 {
+        margin: 8px 0 6px;
+        font-size: 15px;
+      }
+      .card p {
+        margin: 0;
+        font-size: 13.5px;
+        color: var(--ink-dim);
+      }
+
+      /* ---- Pattern list ---- */
+      ol.rules {
+        counter-reset: r;
+        list-style: none;
+        padding: 0;
+        margin: 18px 0;
+      }
+      ol.rules li {
+        counter-increment: r;
+        position: relative;
+        padding: 14px 16px 14px 56px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        margin-bottom: 10px;
+        background: var(--panel);
+        font-size: 14px;
+        color: var(--ink-dim);
+      }
+      ol.rules li b {
+        color: var(--ink);
+      }
+      ol.rules li::before {
+        content: counter(r);
+        position: absolute;
+        left: 14px;
+        top: 13px;
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--acc);
+        border: 1px solid rgba(124, 92, 255, 0.35);
+        border-radius: 8px;
+        background: rgba(124, 92, 255, 0.08);
+      }
+
+      /* ---- Table ---- */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 18px 0;
+        font-size: 13.5px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      th {
+        color: var(--ink-faint);
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+      td {
+        color: var(--ink-dim);
+      }
+      td code {
+        white-space: nowrap;
+      }
+      tr:hover td {
+        background: rgba(255, 255, 255, 0.015);
+      }
+
+      /* ---- Trace flow ---- */
+      .traces {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin: 20px 0;
+      }
+      .trace {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 20px;
+        background: var(--panel);
+      }
+      .trace .th {
+        font-size: 14px;
+        font-weight: 650;
+        color: #fff;
+        margin-bottom: 4px;
+      }
+      .trace .sub {
+        font-size: 12px;
+        color: var(--ink-faint);
+        margin-bottom: 16px;
+        font-family: var(--mono);
+      }
+      .step {
+        position: relative;
+        padding: 0 0 16px 26px;
+        font-size: 13px;
+        color: var(--ink-dim);
+      }
+      .step:last-child {
+        padding-bottom: 0;
+      }
+      .step::before {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 5px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--acc);
+        box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.15);
+      }
+      .step::after {
+        content: "";
+        position: absolute;
+        left: 10px;
+        top: 14px;
+        bottom: 0;
+        width: 1px;
+        background: var(--line);
+      }
+      .step:last-child::after {
+        display: none;
+      }
+      .step b {
+        color: var(--ink);
+      }
+      .trace.b .step::before {
+        background: var(--acc-2);
+        box-shadow: 0 0 0 3px rgba(25, 227, 177, 0.15);
+      }
+
+      /* ---- Checklist ---- */
+      ul.check {
+        list-style: none;
+        padding: 0;
+        margin: 18px 0;
+      }
+      ul.check li {
+        position: relative;
+        padding: 10px 14px 10px 40px;
+        font-size: 14px;
+        color: var(--ink-dim);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      ul.check li::before {
+        content: "";
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        width: 16px;
+        height: 16px;
+        border: 1.5px solid var(--acc);
+        border-radius: 5px;
+      }
+      ul.check li b {
+        color: var(--ink);
+      }
+
+      .callout {
+        border-left: 3px solid var(--warn);
+        background: rgba(255, 209, 102, 0.06);
+        padding: 12px 16px;
+        border-radius: 0 10px 10px 0;
+        font-size: 13.5px;
+        color: var(--ink-dim);
+        margin: 18px 0;
+      }
+      footer {
+        padding: 30px 48px;
+        color: var(--ink-faint);
+        font-size: 12.5px;
+        font-family: var(--mono);
+      }
+
+      @media (max-width: 880px) {
+        .wrap {
+          grid-template-columns: 1fr;
+        }
+        nav.toc {
+          display: none;
+        }
+        section,
+        header.hero,
+        footer {
+          padding-left: 22px;
+          padding-right: 22px;
+        }
+        .grid.c3,
+        .grid.c2,
+        .traces {
+          grid-template-columns: 1fr;
+        }
+        header.hero h1 {
+          font-size: 32px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav class="toc">
+        <div class="brand">Agent-Native</div>
+        <div class="sub">Solo Builder Onboarding</div>
+        <ol>
+          <li><a href="#thesis">The thesis</a></li>
+          <li><a href="#repo">What this repo is</a></li>
+          <li><a href="#arch">Architecture map</a></li>
+          <li><a href="#modules">Core modules</a></li>
+          <li><a href="#patterns">Design patterns</a></li>
+          <li><a href="#flow">How data flows</a></li>
+          <li><a href="#workflow">Daily workflow</a></li>
+          <li><a href="#shapes">Three shapes</a></li>
+          <li><a href="#checklist">First-week list</a></li>
+        </ol>
+      </nav>
+
+      <main>
+        <header class="hero">
+          <span class="kicker"><span class="dot"></span> Senior Solo Builder · Mental Model</span>
+          <h1>
+            One contract.<br /><span class="g">UI and agent, equal citizens.</span>
+          </h1>
+          <p class="lede">
+            Everything the UI can do, the agent can do — because both call the
+            same action surface over the same SQL state. This page is your
+            one-sitting map of the architecture, the modules, the rules, and how
+            bytes actually move under the hood.
+          </p>
+          <div class="meta-row">
+            <span class="chip"><b>pnpm</b> monorepo</span>
+            <span class="chip"><b>React</b> frontend</span>
+            <span class="chip"><b>Nitro</b> server</span>
+            <span class="chip"><b>Drizzle</b> · any SQL</span>
+            <span class="chip"><b>Claude</b> agent runtime</span>
+            <span class="chip"><b>MCP · A2A</b> protocols</span>
+            <span class="chip"><b>Yjs</b> CRDT collab</span>
+          </div>
+        </header>
+
+        <!-- 1 -->
+        <section id="thesis">
+          <div class="sec-id">01</div>
+          <h2>The one-sentence thesis</h2>
+          <div class="thesis">
+            <p class="big">
+              Don't choose between a rich UI and an autonomous agent — ship both
+              off one contract.
+            </p>
+            <p>
+              No "AI bolted on the side." The <b>Action</b> is the atom of the
+              system. UI, agent, HTTP, MCP, A2A, and CLI are all just
+              <i>callers</i> of actions. Internalize that and the rest follows.
+            </p>
+          </div>
+          <pre><span class="c">// One action powers UI, agent, HTTP, MCP, A2A, and CLI — all of them.</span>
+<span class="k">export default</span> <span class="f">defineAction</span>({
+  description: <span class="s">"Get a single email by ID, including its full body."</span>,
+  schema: z.<span class="f">object</span>({ id: z.<span class="f">string</span>() }),
+  http: { method: <span class="s">"GET"</span> },
+  run: <span class="k">async</span> ({ id }) => {
+    <span class="c">/* read scoped SQL, return data */</span>
+  },
+});</pre>
+        </section>
+
+        <!-- 2 -->
+        <section id="repo">
+          <div class="sec-id">02</div>
+          <h2>What this repo actually is</h2>
+          <p>
+            It's the <b>framework plus the showcase apps</b> — not a single
+            product. Four layers worth knowing:
+          </p>
+          <div class="grid c2">
+            <div class="card">
+              <div class="tag">packages/core</div>
+              <h4>@agent-native/core — the runtime</h4>
+              <p>
+                CLI, agent loop, action engine, server plugins, Vite plugin,
+                sync, auth, collab, observability. The published npm package every
+                template depends on. Most "how does the magic work" answers live
+                here.
+              </p>
+            </div>
+            <div class="card">
+              <div class="tag">templates/*</div>
+              <h4>15 cloneable SaaS apps</h4>
+              <p>
+                mail, calendar, slides, analytics, content, plan, clips… Each is a
+                standalone app with its own Drizzle schema, <code>actions/</code>,
+                <code>app/</code> (React), and <code>server/</code> (Nitro). Both
+                reference and product.
+              </p>
+            </div>
+            <div class="card">
+              <div class="tag">packages/{dispatch,…}</div>
+              <h4>Satellite packages</h4>
+              <p>
+                Workspace control plane (vault/integrations), scheduling
+                primitives, pinpoint visual feedback, embedding SDK, migration
+                workbench, dev frame.
+              </p>
+            </div>
+            <div class="card">
+              <div class="tag">.agents/skills + skills</div>
+              <h4>The real docs</h4>
+              <p>
+                Prose playbooks the agent reads <i>before</i> touching an area.
+                <code>AGENTS.md</code>/<code>CLAUDE.md</code> are deliberately
+                thin and point here. The Skill Index is your map.
+              </p>
+            </div>
+          </div>
+          <div class="callout">
+            <b>Fork hygiene:</b> <code>origin</code> is your fork
+            (<code>borahanmirzaii/agent-native</code>);
+            <code>upstream</code> is <code>BuilderIO/agent-native</code>. Land
+            work on your fork — leave upstream untouched.
+          </div>
+        </section>
+
+        <!-- 3 -->
+        <section id="arch">
+          <div class="sec-id">03</div>
+          <h2>The architecture in one diagram</h2>
+          <p>
+            Any write — from UI <i>or</i> agent — lands in SQL, the sync layer
+            notifies every connected surface, and the agent's view of
+            <code>application_state</code> stays current. Neither side is special.
+          </p>
+          <pre class="diagram">                ┌───────────────────────── USER ─────────────────────────┐
+        clicks  │                                              asks (chat) │
+                ▼                                                          ▼
+   ┌────────────────────────┐                      ┌────────────────────────────┐
+   │   React Frontend       │                      │  Agent Runtime (Claude)     │
+   │   app/  —  CSR pages    │                      │  packages/core/src/agent    │
+   │   useActionQuery /      │                      │  tools = your actions       │
+   │   useActionMutation     │                      │  + skills + memory + jobs   │
+   └───────────┬────────────┘                      └──────────────┬─────────────┘
+               │                 SAME ACTION SURFACE              │
+               └───────────────────────┬──────────────────────────┘
+                                       ▼
+                    ┌──────────────────────────────────┐
+                    │  actions/*  ·  defineAction()      │  ◀── single source of truth
+                    │  zod schema  +  run()              │
+                    └──────────────────┬─────────────────┘
+                                       ▼
+            ┌──────────────────────────────────────────────────────┐
+            │  Nitro server (server/) + /_agent-native/* plugins    │
+            │  auth / request context  ·  poll  ·  routes           │
+            └───────────────────────────┬──────────────────────────┘
+                                        ▼
+            ┌──────────────────────────────────────────────────────┐
+            │  SQL via Drizzle (SQLite · Postgres · libSQL · …)      │
+            │  app data · application_state · threads · settings    │
+            └───────────────────────────┬──────────────────────────┘
+                                        │
+              change ──▶ useDbSync() polls /_agent-native/poll
+                         (+ SSE fast-path, + Yjs CRDT for collab)
+                                        │
+                                        ▼   UI re-renders · agent stays aware</pre>
+        </section>
+
+        <!-- 4 -->
+        <section id="modules">
+          <div class="sec-id">04</div>
+          <h2>Core modules — where to look when…</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>You want to understand…</th>
+                <th>Look here</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>How an action is defined &amp; dispatched</td><td><code>packages/core/src/action.ts</code>, <code>action-ui.ts</code></td></tr>
+              <tr><td>The agent loop / tools / processors</td><td><code>packages/core/src/agent/</code></td></tr>
+              <tr><td>SQL schema, DB adapters, migrations</td><td><code>core/src/db/</code>, a template's <code>server/db/</code></td></tr>
+              <tr><td>App state the agent reads</td><td><code>core/src/application-state/</code></td></tr>
+              <tr><td>Real-time sync &amp; polling</td><td>sync + <code>/_agent-native/poll</code> plugin</td></tr>
+              <tr><td>Routes / plugins / auth context</td><td><code>core/src/server/</code>, <code>router/</code></td></tr>
+              <tr><td>MCP / A2A / external agents</td><td><code>core/src/{mcp,mcp-client,a2a}/</code></td></tr>
+              <tr><td>Collaborative editing (Yjs CRDT)</td><td><code>core/src/collab/</code></td></tr>
+              <tr><td>Skills · memory · jobs · onboarding</td><td><code>core/src/{onboarding,jobs,triggers,settings}/</code></td></tr>
+              <tr><td>Extensions (sandboxed mini-apps)</td><td><code>core/src/extensions/</code></td></tr>
+              <tr><td>Credentials / vault / integrations</td><td><code>core/src/{credentials,secrets,integrations}/</code>, <code>packages/dispatch/</code></td></tr>
+              <tr><td>The CLI (<code>npx @agent-native/core …</code>)</td><td><code>packages/core/src/cli/</code></td></tr>
+            </tbody>
+          </table>
+          <h3>A template's anatomy (e.g. <code>templates/mail/</code>)</h3>
+          <pre><span class="f">actions/</span>     defineAction files — capability surface (agent tools + UI calls)
+<span class="f">app/</span>         React Router app: pages/, components/, routes.ts, root.tsx
+<span class="f">server/</span>      Nitro: db/, routes/, plugins/, middleware/, handlers/, lib/
+<span class="f">shared/</span>      code shared between client + server
+<span class="f">data/</span>        seed / example data
+AGENTS.md · CLAUDE.md · drizzle.config.ts · vite.config.ts · package.json</pre>
+        </section>
+
+        <!-- 5 -->
+        <section id="patterns">
+          <div class="sec-id">05</div>
+          <h2>The non-negotiable design patterns</h2>
+          <p>
+            These are enforced by <code>pnpm guards</code> and CI. Each guard
+            codifies a real past incident — break a rule and the suite catches it.
+          </p>
+          <ol class="rules">
+            <li><b>Actions are the single source of truth.</b> Define ops in <code>actions/</code>; agent gets tools, frontend uses <code>useActionQuery</code>/<code>useActionMutation</code>. Never hand-write <code>fetch</code> — add a named helper first.</li>
+            <li><b>No twin routes.</b> Don't wrap an action in a REST endpoint that re-exports it. Inspect existing actions before adding any custom route for app data.</li>
+            <li><b>Data lives in SQL via Drizzle, provider-agnostic.</b> Never assume SQLite. Schema changes are <b>additive only</b> — never drop/rename/truncate, never <code>drizzle-kit push</code> at prod.</li>
+            <li><b>Scoped access on ownable data.</b> <code>ownableColumns()</code> tables read/write through <code>accessFilter</code> / <code>resolveAccess</code> / <code>assertAccess</code>. Custom routes establish request context first.</li>
+            <li><b>App state lives in <code>application_state</code> (SQL)</b> so the agent always knows current navigation, selection, and focused object.</li>
+            <li><b>All AI work goes through the agent chat.</b> UIs never call an LLM directly — delegate to the agent.</li>
+            <li><b>Secrets are never hardcoded.</b> Vault/secrets own values; apps own readers. Use workspace integration grants, not copied tokens.</li>
+            <li><b>Optimistic UI by default.</b> Update cache + navigate immediately, roll back on error. Spinners only for destructive ops.</li>
+            <li><b>The four-area rule.</b> Every feature touches <b>UI · actions · skills/instructions · application state</b> when applicable.</li>
+            <li><b>The agent can edit the app's own source.</b> Design UI and data flows to be legible to an agent.</li>
+          </ol>
+        </section>
+
+        <!-- 6 -->
+        <section id="flow">
+          <div class="sec-id">06</div>
+          <h2>How data flows — two concrete traces</h2>
+          <p>
+            Same atoms, same scoping, both directions. That symmetry
+            <i>is</i> the framework.
+          </p>
+          <div class="traces">
+            <div class="trace">
+              <div class="th">A · User clicks "Archive" in the UI</div>
+              <div class="sub">human → action → SQL → everyone</div>
+              <div class="step"><b>Button</b> → <code>useActionMutation("archive-email", {id})</code>; optimistic cache update fires instantly.</div>
+              <div class="step">Request hits the action surface → <code>archive-email</code> <b>run()</b>.</div>
+              <div class="step">Scoped Drizzle write — access checked via <code>resolveAccess</code>.</div>
+              <div class="step">Write lands in SQL; <code>application_state</code> reflects new view.</div>
+              <div class="step"><code>useDbSync()</code> notifies every surface — other tabs, users, and the <b>agent</b>.</div>
+            </div>
+            <div class="trace b">
+              <div class="th">B · "Archive everything from Stripe" in chat</div>
+              <div class="sub">agent → same action → SQL → live UI</div>
+              <div class="step">Agent runtime's tools <b>are</b> the same actions (<code>list-emails</code>, <code>archive-email</code>).</div>
+              <div class="step">Agent calls <code>list-emails</code>, then <code>archive-email</code> — identical run(), identical scoping.</div>
+              <div class="step">No separate "AI path." Same guarantees as the click.</div>
+              <div class="step">SQL write → sync → UI updates live while the agent narrates.</div>
+              <div class="step">The agent sees the result via <code>application_state</code>, continues.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 7 -->
+        <section id="workflow">
+          <div class="sec-id">07</div>
+          <h2>Daily workflow &amp; commands</h2>
+          <pre>pnpm install                 <span class="c"># postinstall builds core + sibling packages</span>
+pnpm dev                     <span class="c"># lazy dev (recommended)</span>
+pnpm --filter mail dev       <span class="c"># run a single template</span>
+pnpm --filter @agent-native/core dev   <span class="c"># watch-build the framework</span>
+
+pnpm run prep                <span class="c"># fmt + typecheck + test + guards — RUN BEFORE PUSH</span>
+pnpm typecheck               <span class="c"># all packages + templates</span>
+pnpm test                    <span class="c"># core + migrate + docs + dispatch + brain evals</span>
+pnpm run guards              <span class="c"># the security/consistency guard suite</span></pre>
+          <div class="grid c3">
+            <div class="card">
+              <div class="tag">env</div>
+              <h4>Database &amp; keys</h4>
+              <p><code>DATABASE_URL</code> unset → local SQLite at <code>data/app.db</code>. Set it for Postgres/Neon/Supabase/Turso. <code>ANTHROPIC_API_KEY</code> required for agent chat.</p>
+            </div>
+            <div class="card">
+              <div class="tag">releases</div>
+              <h4>Changesets</h4>
+              <p>Source changes in <code>packages/{core,dispatch,scheduling,pinpoint}</code> need a <code>.changeset/*.md</code>. Never bump versions by hand.</p>
+            </div>
+            <div class="card">
+              <div class="tag">safety</div>
+              <h4>Guards = incidents</h4>
+              <p>Read the header of any <code>scripts/guard-*.mjs</code> to see the invariant it protects (cross-tenant leaks, credential leaks, prod push…).</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 8 -->
+        <section id="shapes">
+          <div class="sec-id">08</div>
+          <h2>Three product shapes, same primitives</h2>
+          <p>
+            You never rebuild the agent contract to change shape — you wrap more
+            (or less) UI around the same actions.
+          </p>
+          <table>
+            <thead>
+              <tr><th>Shape</th><th>You ship</th><th>Underneath</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><b>Headless</b></td><td>Call agent + actions from code / CLI / HTTP / MCP / A2A.</td><td>actions, auth, jobs</td></tr>
+              <tr><td><b>Rich chat</b></td><td>Standalone/embedded chat with native tool renderers.</td><td>shared chat runtime</td></tr>
+              <tr><td><b>Whole app</b></td><td>Full SaaS UI; chat moves sidebar ↔ center, stays synced.</td><td>SQL state + actions</td></tr>
+            </tbody>
+          </table>
+          <div class="callout">
+            <b>Mental shortcut:</b> "Where do I add capability X?" → an action.
+            "How does the agent know about Y?" → it's a tool (action) or it's in
+            <code>application_state</code>. "Why won't the UI update?" → sync
+            wiring, not a render bug, nine times out of ten.
+          </div>
+        </section>
+
+        <!-- 9 -->
+        <section id="checklist">
+          <div class="sec-id">09</div>
+          <h2>First-week checklist</h2>
+          <ul class="check">
+            <li><b>Run one template.</b> <code>pnpm install &amp;&amp; pnpm --filter mail dev</code> with local SQLite + <code>ANTHROPIC_API_KEY</code> set.</li>
+            <li><b>Read one full action</b> top-to-bottom (<code>templates/mail/actions/get-email.ts</code>); trace its scoping + return shape.</li>
+            <li><b>Watch the symmetry.</b> Archive an email in the UI, then ask the agent to archive one — both hit the same action.</li>
+            <li><b>Skim the runtime.</b> <code>packages/core/src/agent/</code> and <code>action.ts</code> to see the loop.</li>
+            <li><b>Read the 5 core skills:</b> <code>adding-a-feature</code>, <code>actions</code>, <code>storing-data</code>, <code>real-time-sync</code>, <code>security</code> — ~80% of daily work.</li>
+            <li><b>Learn green.</b> Run <code>pnpm run prep</code> once so you know what passing looks like before you push.</li>
+          </ul>
+        </section>
+
+        <footer>
+          Stack: pnpm monorepo · React (CSR app, SSR public) · Nitro · Drizzle
+          (any SQL) · Claude agent runtime · MCP/A2A · Yjs CRDT collab —
+          backend-agnostic by design, no lock-in. &nbsp;·&nbsp; Companion file:
+          ONBOARDING.md
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>
