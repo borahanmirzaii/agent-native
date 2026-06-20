@@ -102,3 +102,5 @@ templates/*/.env.local
 templates/*/.env.*.local
 test-reports/
 *.tsbuildinfo
+.sid-identity
+.envrc
