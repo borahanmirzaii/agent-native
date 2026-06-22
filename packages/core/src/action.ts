@@ -8,6 +8,7 @@ import {
   type ActionChatUIConfig,
 } from "./action-ui.js";
 import {
+  describeGuaranteesForTool,
   normalizeGuarantees,
   type ActionGuarantee,
 } from "./action-guarantees.js";
@@ -496,6 +497,14 @@ export interface ActionDefinition<TInput, TReturn> {
    *  author declared at least one. A `read-only` guarantee is kept consistent
    *  with `readOnly` (see `defineAction`). */
   readonly guarantees?: readonly ActionGuarantee[];
+  /** Model-facing tool description with declared guarantees appended, computed
+   *  ONCE at `defineAction` time (a pure function of `tool.description` +
+   *  `guarantees`). Per-request paths — the in-process agent's
+   *  `actionsToEngineTools` and the MCP tool descriptor — read this instead of
+   *  recomputing `describeGuaranteesForTool` on every request. Present only when
+   *  at least one guarantee is declared; otherwise fall back to
+   *  `tool.description`. */
+  readonly toolDescriptionWithGuarantees?: string;
   readonly parallelSafe?: boolean;
   readonly toolCallable?: boolean;
   readonly publicAgent?: PublicAgentActionConfig;
@@ -633,8 +642,7 @@ export function defineAction(options: any) {
 
   // Reconcile the `read-only` guarantee with the `readOnly` boolean so the two
   // can NEVER disagree silently. An explicit `readOnly:false` alongside a
-  // `read-only` guarantee is a contradiction → throw. Otherwise the guarantee
-  // DERIVES `readOnly:true` (a read-only action must not trigger a refresh).
+  // `read-only` guarantee is the only contradiction → throw loudly here.
   if (hasReadOnlyGuarantee && options.readOnly === false) {
     throw new Error(
       `Action declares the "read-only" guarantee but also sets readOnly:false — ` +
@@ -642,18 +650,32 @@ export function defineAction(options: any) {
     );
   }
 
-  // Resolution order: a `read-only` guarantee wins (→ true), then an explicit
-  // `readOnly` (true OR false) wins, otherwise infer from http.method. We store
-  // the resolved boolean so downstream checks can trust entry.readOnly without
-  // re-running method inference — including when a caller explicitly passes
-  // readOnly:false to override a GET (rare but valid).
-  const readOnly: boolean | undefined = hasReadOnlyGuarantee
+  // Single decision site for `readOnly`. A `read-only` guarantee folds into the
+  // *declared* boolean (it implies `readOnly:true`, and the throw above already
+  // ruled out the only contradiction), so there is no separate guarantee branch
+  // sitting above this resolution. From here it's the plain rule: an explicit
+  // declaration (true OR false) wins, otherwise infer from http.method === GET.
+  // We store the resolved boolean so downstream checks can trust entry.readOnly
+  // without re-running method inference.
+  const declaredReadOnly: boolean | undefined = hasReadOnlyGuarantee
     ? true
-    : typeof options.readOnly === "boolean"
-      ? options.readOnly
+    : options.readOnly;
+  const readOnly: boolean | undefined =
+    typeof declaredReadOnly === "boolean"
+      ? declaredReadOnly
       : inferredReadOnly
         ? true
         : undefined;
+
+  // Precompute the model-facing tool description with guarantees appended ONCE
+  // at defineAction time. It's a pure function of (description, guarantees) —
+  // both fixed here — so per-request paths (actionsToEngineTools, MCP tool
+  // descriptors) must read this rather than recompute it on every call. Present
+  // only when guarantees are declared, so guarantee-free entries stay
+  // byte-for-byte unchanged and consumers fall back to `tool.description`.
+  const toolDescriptionWithGuarantees = guarantees
+    ? describeGuaranteesForTool(options.description, guarantees)
+    : undefined;
 
   // toolCallable: thread through whatever the caller declared. We DO NOT
   // default to `true` here — the absence of an explicit field is meaningful
@@ -722,6 +744,7 @@ export function defineAction(options: any) {
     ...(typeof agentTool === "boolean" ? { agentTool } : {}),
     ...(typeof readOnly === "boolean" ? { readOnly } : {}),
     ...(guarantees ? { guarantees } : {}),
+    ...(toolDescriptionWithGuarantees ? { toolDescriptionWithGuarantees } : {}),
     ...(typeof parallelSafe === "boolean" ? { parallelSafe } : {}),
     ...(typeof toolCallable === "boolean" ? { toolCallable } : {}),
     ...(publicAgent ? { publicAgent } : {}),

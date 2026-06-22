@@ -600,6 +600,64 @@ describe("handleMcpRequest — web-standard runtime fallback (no Node req/res)",
     expect(echo._meta?.ui?.permissions).toBeUndefined();
   });
 
+  it("surfaces declared guarantees on the MCP tool descriptor (description + annotations)", async () => {
+    // External MCP agents — the autonomous, no-human-in-the-loop callers the
+    // guarantees feature targets — must see the same declared promises the
+    // in-process agent does. Build a guarantee-bearing entry the way
+    // defineAction does: the precomputed description + the resolved readOnly.
+    const guaranteedConfig = {
+      ...config,
+      actions: {
+        "archive-thing": {
+          tool: {
+            description: "Archive a thing.",
+            parameters: {
+              type: "object" as const,
+              properties: { id: { type: "string" } },
+              required: ["id"],
+            },
+          },
+          run: async () => ({ ok: true }),
+          readOnly: true,
+          guarantees: ["read-only", "idempotent", "reversible"] as const,
+          toolDescriptionWithGuarantees:
+            "Archive a thing.\n\nGuarantees (the caller can rely on these): read-only, idempotent, reversible.",
+        },
+      },
+    };
+
+    const out = await callWeb(
+      {
+        jsonrpc: "2.0",
+        id: 21,
+        method: "tools/list",
+        params: {},
+      },
+      {
+        headers: { "x-agent-native-mcp-full-catalog": "1" },
+        config: guaranteedConfig,
+      },
+    );
+
+    expect(out.error).toBeUndefined();
+    const tool = out.result.tools.find((t: any) => t.name === "archive-thing");
+    expect(tool).toBeTruthy();
+    // The precomputed guarantees line rides on the descriptor description.
+    expect(tool.description).toMatch(
+      /Guarantees.*read-only, idempotent, reversible/,
+    );
+    // Standard MCP annotation hints reflect the guarantees.
+    expect(tool.annotations?.readOnlyHint).toBe(true);
+    expect(tool.annotations?.idempotentHint).toBe(true);
+    // The full declared set is exposed under a namespaced annotation so hosts
+    // can reason structurally, not only from prose.
+    expect(tool.annotations?.["agent-native/guarantees"]).toEqual([
+      "read-only",
+      "idempotent",
+      "reversible",
+    ]);
+  });
+
   it("uses a compact tool catalog when the OAuth token has mcp:apps", async () => {
     const out = await callWeb(
       {
