@@ -186,6 +186,63 @@ Rules:
 
 Agents do NOT need to call `refresh-screen` after a normal action — it's already handled. `refresh-screen` is only needed when the agent mutates data via a path the framework can't see (e.g. writing to an external system the app mirrors) or when the agent wants to pass a `scope` hint for narrower invalidation.
 
+### Guarantees (machine-checkable promises)
+
+An action's `description` says what it *does*; `guarantees` says what it
+*promises*. Because the agent picks and invokes actions **autonomously**, a
+typed promise layer lets the model (and in-loop guardrails) reason about an
+action's safety *before* calling it. `guarantees` is the principled
+generalization of the `readOnly` boolean into a small, typed set:
+
+```ts
+export default defineAction({
+  description: "Archive (soft-delete) or restore a dashboard by ID.",
+  schema: z.object({ id: z.string(), archived: z.boolean().default(true) }),
+  guarantees: ["reversible", "access-scoped"],
+  run: async (args) => {
+    /* ... */
+  },
+});
+```
+
+| Guarantee | Promise to the caller | Declare it when… |
+| --- | --- | --- |
+| `read-only` | No writes / side-effects. | The action only reads. Implies `readOnly: true`. |
+| `idempotent` | Calling N times == calling once. | The action upserts / sets an absolute state rather than appending or incrementing. |
+| `reversible` | The effect can be undone. | There's a restore path (archive/soft-delete with an un-archive, a toggle). |
+| `access-scoped` | Every read/write enforces ownable access checks. | The action scopes data through `accessFilter` / `resolveAccess` / `assertAccess` (or an equivalent auth-scoped store). |
+
+Rules:
+
+- **Additive and optional.** Omit it and the action behaves exactly as before.
+- **`read-only` reconciles with `readOnly`.** A `read-only` guarantee derives
+  `readOnly: true`. Setting `readOnly: false` *and* declaring `read-only` throws
+  at `defineAction` time — the two can never disagree silently.
+- **Typos fail loudly.** An unknown guarantee value throws at definition time,
+  so the agent never trusts a malformed promise.
+- **Keep the vocabulary small.** It's easier to add a value later than to remove
+  one once templates depend on it.
+- **Surfaced to the agent.** Declared guarantees are appended to the tool's
+  model-facing description automatically.
+
+Assert a declared guarantee against real behavior in a test with
+`assertActionGuarantee` (from `@agent-native/core`), so a promise can't silently
+rot:
+
+```ts
+import { assertActionGuarantee } from "@agent-native/core";
+
+await assertActionGuarantee(archiveDashboard, "reversible", {
+  args: { id, archived: true },
+  observe: () => readDashboardRow(id), // deep-compared snapshot
+  undo: (result) => archiveDashboard.run({ id, archived: false }),
+});
+```
+
+`read-only` / `idempotent` / `reversible` are behaviorally assertable via the
+`observe()` (and `undo()`) probes; `access-scoped` is verified with your normal
+access-control tests (an unauthorized caller must be denied).
+
 ### Return Values
 
 Actions should return **structured data** (objects, arrays) — not `JSON.stringify()`. The framework serializes the response automatically. If you return a string, the framework tries to parse it as JSON for a clean response.

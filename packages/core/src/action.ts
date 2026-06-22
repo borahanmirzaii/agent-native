@@ -7,6 +7,10 @@ import {
   normalizeActionChatUIConfig,
   type ActionChatUIConfig,
 } from "./action-ui.js";
+import {
+  normalizeGuarantees,
+  type ActionGuarantee,
+} from "./action-guarantees.js";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 /**
@@ -323,6 +327,14 @@ interface DefineActionWithSchema<
    *  Only set this manually when you need to override the inference — e.g. a
    *  POST action that only reads data but can't use GET for a protocol reason. */
   readOnly?: boolean;
+  /** Optional machine-checkable promises this action makes about its behavior
+   *  (`read-only`, `idempotent`, `reversible`, `access-scoped`). Surfaced in the
+   *  agent-facing tool metadata so the model can reason about safety BEFORE
+   *  invoking. The principled generalization of `readOnly`: a `read-only`
+   *  guarantee implies `readOnly: true` and the two can never disagree silently.
+   *  Additive and optional — omit it and the action behaves exactly as before.
+   *  See `action-guarantees.ts` and the `actions` skill. */
+  guarantees?: ActionGuarantee[];
   /** If true, the agent may execute this action concurrently with other
    *  read-only or parallel-safe tool calls emitted in the same model turn.
    *  Only set this for mutating actions that are internally concurrency-safe
@@ -420,6 +432,9 @@ interface DefineActionWithParams<
   /** If true, the framework will NOT emit a screen-refresh change event after a
    *  successful call. Auto-inferred as `true` when `http.method === "GET"`. */
   readOnly?: boolean;
+  /** Optional machine-checkable promises this action makes about its behavior.
+   *  See the schema overload above and `action-guarantees.ts`. */
+  guarantees?: ActionGuarantee[];
   /** If true, the agent may execute this action concurrently with other
    *  read-only or parallel-safe tool calls emitted in the same model turn. */
   parallelSafe?: boolean;
@@ -477,6 +492,10 @@ export interface ActionDefinition<TInput, TReturn> {
   readonly requiresAuth?: boolean;
   readonly agentTool?: boolean;
   readonly readOnly?: boolean;
+  /** Resolved, deduplicated machine-checkable guarantees. Present only when the
+   *  author declared at least one. A `read-only` guarantee is kept consistent
+   *  with `readOnly` (see `defineAction`). */
+  readonly guarantees?: readonly ActionGuarantee[];
   readonly parallelSafe?: boolean;
   readonly toolCallable?: boolean;
   readonly publicAgent?: PublicAgentActionConfig;
@@ -606,12 +625,31 @@ export function defineAction(options: any) {
     httpConfig !== false &&
     httpConfig !== undefined &&
     httpConfig.method === "GET";
-  // Explicit `readOnly` (true OR false) wins. Otherwise infer from http.method.
-  // We store the resolved boolean so downstream checks can trust entry.readOnly
-  // without re-running method inference — including when a caller explicitly
-  // passes readOnly:false to override a GET (rare but valid).
-  const readOnly: boolean | undefined =
-    typeof options.readOnly === "boolean"
+  // Normalize + validate declared guarantees. Unknown vocabulary throws here
+  // (at module load) rather than being silently dropped — guarantees are a
+  // contract an autonomous agent may trust, so a typo must fail loudly.
+  const guarantees = normalizeGuarantees(options.guarantees);
+  const hasReadOnlyGuarantee = guarantees?.includes("read-only") ?? false;
+
+  // Reconcile the `read-only` guarantee with the `readOnly` boolean so the two
+  // can NEVER disagree silently. An explicit `readOnly:false` alongside a
+  // `read-only` guarantee is a contradiction → throw. Otherwise the guarantee
+  // DERIVES `readOnly:true` (a read-only action must not trigger a refresh).
+  if (hasReadOnlyGuarantee && options.readOnly === false) {
+    throw new Error(
+      `Action declares the "read-only" guarantee but also sets readOnly:false — ` +
+        `these contradict. Drop one: a read-only action cannot also be a writer.`,
+    );
+  }
+
+  // Resolution order: a `read-only` guarantee wins (→ true), then an explicit
+  // `readOnly` (true OR false) wins, otherwise infer from http.method. We store
+  // the resolved boolean so downstream checks can trust entry.readOnly without
+  // re-running method inference — including when a caller explicitly passes
+  // readOnly:false to override a GET (rare but valid).
+  const readOnly: boolean | undefined = hasReadOnlyGuarantee
+    ? true
+    : typeof options.readOnly === "boolean"
       ? options.readOnly
       : inferredReadOnly
         ? true
@@ -683,6 +721,7 @@ export function defineAction(options: any) {
       : {}),
     ...(typeof agentTool === "boolean" ? { agentTool } : {}),
     ...(typeof readOnly === "boolean" ? { readOnly } : {}),
+    ...(guarantees ? { guarantees } : {}),
     ...(typeof parallelSafe === "boolean" ? { parallelSafe } : {}),
     ...(typeof toolCallable === "boolean" ? { toolCallable } : {}),
     ...(publicAgent ? { publicAgent } : {}),

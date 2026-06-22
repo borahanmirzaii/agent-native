@@ -208,6 +208,65 @@ describe("defineAction", () => {
     expect(action.needsApproval).toBeUndefined();
   });
 
+  // -------------------------------------------------------------------------
+  // guarantees — machine-checkable promises + readOnly reconciliation
+  // -------------------------------------------------------------------------
+  it("normalizes and deduplicates declared guarantees", () => {
+    const action = defineAction({
+      description: "reversible scoped write",
+      parameters: { id: { type: "string" } },
+      guarantees: ["reversible", "access-scoped", "reversible"],
+      run: async () => "ok",
+    });
+    expect(action.guarantees).toEqual(["reversible", "access-scoped"]);
+  });
+
+  it("leaves guarantees undefined when none declared (additive / untouched)", () => {
+    const action = defineAction({
+      description: "plain write",
+      parameters: { id: { type: "string" } },
+      run: async () => "ok",
+    });
+    expect("guarantees" in action).toBe(false);
+  });
+
+  it("throws on an unknown guarantee value (no silent footgun)", () => {
+    expect(() =>
+      defineAction({
+        description: "typo",
+        parameters: {},
+        // intentional typo — must fail loudly at defineAction time
+        guarantees: ["readonly"] as any,
+        run: async () => "ok",
+      }),
+    ).toThrow(/Unknown action guarantee/);
+  });
+
+  it("derives readOnly=true from a read-only guarantee even on a POST", () => {
+    const action = defineAction({
+      description: "read-only post",
+      parameters: { id: { type: "string" } },
+      http: { method: "POST" },
+      guarantees: ["read-only"],
+      run: async () => "ok",
+    });
+    // The guarantee supersedes/aligns with the boolean.
+    expect(action.readOnly).toBe(true);
+    expect(action.guarantees).toEqual(["read-only"]);
+  });
+
+  it("throws when a read-only guarantee contradicts readOnly:false (no silent disagreement)", () => {
+    expect(() =>
+      defineAction({
+        description: "contradiction",
+        parameters: { id: { type: "string" } },
+        readOnly: false,
+        guarantees: ["read-only"],
+        run: async () => "ok",
+      }),
+    ).toThrow(/contradict/);
+  });
+
   it("omits http from the entry when http is not specified", () => {
     const action = defineAction({
       description: "no http",
