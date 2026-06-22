@@ -267,6 +267,47 @@ describe("defineAction", () => {
     ).toThrow(/contradict/);
   });
 
+  it("still honors an explicit readOnly:false on a GET when no read-only guarantee is declared (single decision site)", () => {
+    // The folded resolution must not regress the explicit-override path: a
+    // declared readOnly wins over GET-method inference, and a non-read-only
+    // guarantee leaves that override intact.
+    const action = defineAction({
+      description: "get that writes",
+      parameters: { id: { type: "string" } },
+      http: { method: "GET" },
+      readOnly: false,
+      guarantees: ["idempotent"],
+      run: async () => "ok",
+    });
+    expect(action.readOnly).toBe(false);
+    expect(action.guarantees).toEqual(["idempotent"]);
+  });
+
+  it("precomputes toolDescriptionWithGuarantees once at defineAction time", () => {
+    const action = defineAction({
+      description: "Archive a thing.",
+      parameters: { id: { type: "string" } },
+      guarantees: ["reversible", "access-scoped"],
+      run: async () => "ok",
+    });
+    // The augmented, model-facing description is stored on the entry so per-
+    // request paths read it instead of recomputing describeGuaranteesForTool.
+    expect(action.toolDescriptionWithGuarantees).toMatch(
+      /Archive a thing\.[\s\S]*Guarantees.*reversible, access-scoped/,
+    );
+    // The raw tool.description stays the unaugmented base.
+    expect(action.tool.description).toBe("Archive a thing.");
+  });
+
+  it("omits toolDescriptionWithGuarantees when no guarantees are declared (additive / untouched)", () => {
+    const action = defineAction({
+      description: "plain",
+      parameters: { id: { type: "string" } },
+      run: async () => "ok",
+    });
+    expect("toolDescriptionWithGuarantees" in action).toBe(false);
+  });
+
   it("omits http from the entry when http is not specified", () => {
     const action = defineAction({
       description: "no http",

@@ -89,7 +89,6 @@ import {
   type ReasoningEffort,
 } from "../shared/reasoning-effort.js";
 import { isAgentActionStopError } from "../action.js";
-import { describeGuaranteesForTool } from "../action-guarantees.js";
 import {
   writeLedgerEntry,
   readLedgerEntry,
@@ -342,6 +341,13 @@ export interface ActionEntry {
    *  description in `actionsToEngineTools` so the agent can reason about safety
    *  before invoking. See `packages/core/src/action-guarantees.ts`. */
   guarantees?: readonly import("../action-guarantees.js").ActionGuarantee[];
+  /** Model-facing tool description with declared guarantees appended, computed
+   *  ONCE at `defineAction` time (pure function of `tool.description` +
+   *  `guarantees`). Per-request paths — `actionsToEngineTools` and the MCP tool
+   *  descriptor — read this instead of recomputing `describeGuaranteesForTool`
+   *  on every request. Present only when guarantees are declared; otherwise
+   *  consumers fall back to `tool.description`. */
+  toolDescriptionWithGuarantees?: string;
   /** If true, this action can run concurrently with other same-turn
    *  read-only/parallel-safe tool calls. Only use for actions that handle
    *  their own write ordering and idempotency. */
@@ -1847,10 +1853,13 @@ export function actionsToEngineTools(
     }
     tools.push({
       name,
-      description: describeGuaranteesForTool(
-        entry.tool.description,
-        entry.guarantees,
-      ),
+      // Read the description+guarantees string precomputed at defineAction time
+      // (pure function of description + guarantees, both fixed there). This path
+      // runs per request — agent-chat plugin, dispatcher, agent-teams, plan-mode
+      // filter — so recomputing it here would be wasted work. Fall back to the
+      // raw description for entries without declared guarantees.
+      description:
+        entry.toolDescriptionWithGuarantees ?? entry.tool.description,
       inputSchema,
     });
   }

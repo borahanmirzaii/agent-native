@@ -1339,12 +1339,32 @@ export async function createMCPServerForRequest(
                 }
               : {}),
           };
-          const baseDescription = entry.tool.description ?? name;
+          // Surface declared guarantees to external MCP agents — the exact
+          // "autonomous caller, no human in the loop" this feature targets —
+          // the same way the in-process agent sees them. Prefer the description
+          // precomputed at defineAction time (description + guarantees line);
+          // fall back to the raw description for guarantee-free actions.
+          const baseDescription =
+            entry.toolDescriptionWithGuarantees ??
+            entry.tool.description ??
+            name;
+          const guarantees = entry.guarantees;
           const annotations: Record<string, unknown> = {
             readOnlyHint: entry.readOnly === true,
             destructiveHint: entry.publicAgent?.isConsequential === true,
             openWorldHint: false,
           };
+          // Map guarantees onto MCP's standard tool annotation hints where one
+          // exists (`idempotentHint`), and expose the full declared set under a
+          // namespaced annotation so hosts can reason structurally, not just
+          // from prose. `read-only` already flows through `entry.readOnly` →
+          // `readOnlyHint` above (the two can't disagree — see defineAction).
+          if (guarantees?.includes("idempotent")) {
+            annotations.idempotentHint = true;
+          }
+          if (guarantees && guarantees.length > 0) {
+            annotations["agent-native/guarantees"] = [...guarantees];
+          }
           if (hasLink) annotations["agent-native/producesOpenLink"] = true;
           return {
             name,
