@@ -211,6 +211,54 @@ describe("assertActionGuarantee", () => {
     ).rejects.toThrow(/not behaviorally assertable/);
   });
 
+  it("uses equality sound for Date / bigint / undefined snapshots (no throw, no false-equal)", async () => {
+    // Snapshots from observe() routinely contain DB-row value kinds that a bare
+    // JSON.stringify mishandles: Date (lossy), bigint (THROWS), and
+    // undefined-valued keys (silently dropped). The helper must compare these
+    // soundly — reverting cleanly must pass, and a residual diff must be caught.
+    type Row = {
+      archivedAt: Date | null;
+      version: bigint;
+      note: string | undefined;
+    };
+    const row: Row = { archivedAt: null, version: 1n, note: undefined };
+    const original: Row = { ...row };
+
+    const action: GuaranteedAction = {
+      guarantees: ["reversible"],
+      run: async () => {
+        row.archivedAt = new Date("2020-01-01T00:00:00.000Z");
+        row.version = 2n;
+        row.note = "archived";
+        return { ok: true };
+      },
+    };
+
+    // A faithful undo restores every field, including the bigint and undefined.
+    await expect(
+      assertActionGuarantee(action, "reversible", {
+        observe: () => ({ ...row }),
+        undo: () => {
+          row.archivedAt = original.archivedAt;
+          row.version = original.version;
+          row.note = original.note;
+        },
+      }),
+    ).resolves.toBeUndefined();
+
+    // A bigint left un-restored must be detected, not throw or false-pass.
+    await expect(
+      assertActionGuarantee(action, "reversible", {
+        observe: () => ({ ...row }),
+        undo: () => {
+          row.archivedAt = original.archivedAt;
+          row.note = original.note;
+          // forgets to restore `version` (a bigint) → must be caught
+        },
+      }),
+    ).rejects.toThrow(/"reversible" violated/);
+  });
+
   it("works against a real defineAction-produced action", async () => {
     let archived = false;
     const action = defineAction({

@@ -16,6 +16,13 @@ can reason about an action's safety _before_ invoking it.
 - Declared guarantees are surfaced in the agent-facing tool metadata.
 - New `assertActionGuarantee` test helper behaviorally verifies a declared
   `read-only` / `idempotent` / `reversible` guarantee against real behavior.
+  Its snapshot equality reuses core's canonical `stableStringify` (now sound for
+  `Date`, `bigint`, and `undefined`-valued fields) instead of a divergent
+  `JSON.stringify` copy that threw on `bigint` and mis-compared `Date`.
+- The documented `reversible` example now projects only the field the guarantee
+  constrains (e.g. `archivedAt`) instead of the whole row, so incidental
+  metadata like `updatedAt` (bumped on both archive and restore) can't
+  false-fail the assertion.
 
 New exports from `@agent-native/core`: `ACTION_GUARANTEES`,
 `normalizeGuarantees`, `describeGuaranteesForTool`, `assertActionGuarantee`,

@@ -234,10 +234,17 @@ import { assertActionGuarantee } from "@agent-native/core";
 
 await assertActionGuarantee(archiveDashboard, "reversible", {
   args: { id, archived: true },
-  observe: () => readDashboardRow(id), // deep-compared snapshot
+  // Project ONLY the field the guarantee constrains, never the whole row.
+  observe: async () => (await readDashboardRow(id)).archivedAt,
   undo: (result) => archiveDashboard.run({ id, archived: false }),
 });
 ```
+
+**`observe()` must return only the constrained field(s)** — exclude incidental
+metadata like `updatedAt`. Both archive and restore bump `updatedAt`, so
+snapshotting the whole row would false-fail `reversible`/`read-only` on a column
+the guarantee never promised to preserve. The snapshot is deep-compared with a
+serializer that's sound for `Date`, `bigint`, and `undefined` fields.
 
 `read-only` / `idempotent` / `reversible` are behaviorally assertable via the
 `observe()` (and `undo()`) probes; `access-scoped` is verified with your normal

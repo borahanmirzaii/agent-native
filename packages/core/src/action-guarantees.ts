@@ -1,4 +1,5 @@
 import type { ActionRunContext } from "./action.js";
+import { stableStringify } from "./agent/context-xray/identity.js";
 
 /**
  * Machine-checkable promises an action makes about its own behavior.
@@ -127,20 +128,15 @@ export interface GuaranteeProbe {
   undo?: (result: unknown) => unknown | Promise<unknown>;
 }
 
-function stableStringify(value: unknown): string {
-  return JSON.stringify(value, (_key, val) => {
-    if (val && typeof val === "object" && !Array.isArray(val)) {
-      return Object.keys(val as Record<string, unknown>)
-        .sort()
-        .reduce<Record<string, unknown>>((acc, k) => {
-          acc[k] = (val as Record<string, unknown>)[k];
-          return acc;
-        }, {});
-    }
-    return val;
-  });
-}
-
+/**
+ * Structural equality for the snapshots `observe()` returns. Built on the
+ * canonical {@link stableStringify} from context-xray's identity module, which
+ * is sound for the value kinds common in DB-row snapshots: `Date` (compared by
+ * its instant, not lost), `bigint` (compared, never throws), and `undefined`
+ * object values (distinguished from absence). We deliberately reuse that single
+ * serializer instead of keeping another local `JSON.stringify`-based copy, which
+ * would throw on `bigint` and silently mis-compare `Date` / `undefined`.
+ */
 function deepEqual(a: unknown, b: unknown): boolean {
   return stableStringify(a) === stableStringify(b);
 }
@@ -162,10 +158,17 @@ function deepEqual(a: unknown, b: unknown): boolean {
  *                  your normal access-control tests (unauthorized caller is
  *                  denied). This helper throws to say so explicitly.
  *
+ * `observe()` must return ONLY the field(s) the guarantee constrains — exclude
+ * incidental metadata like `updatedAt`. Snapshotting a whole row would false-fail
+ * `reversible`/`read-only`: archive *and* restore bump `updatedAt`, so the
+ * before/after rows differ on a column the guarantee never promised to preserve.
+ *
  * @example
  * await assertActionGuarantee(archiveDashboard, "reversible", {
  *   args: { id, archived: true },
- *   observe: () => readDashboardRow(id),
+ *   // Project ONLY the constrained field, not the whole row — `updatedAt`
+ *   // changes on both archive and restore and would false-fail the assertion.
+ *   observe: async () => (await readDashboardRow(id)).archivedAt,
  *   undo: () => archiveDashboard.run({ id, archived: false }),
  * });
  */
