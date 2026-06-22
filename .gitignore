@@ -104,3 +104,6 @@ test-reports/
 *.tsbuildinfo
 .sid-identity
 .envrc
+
+.claude-drafts/
+.worktrees/
