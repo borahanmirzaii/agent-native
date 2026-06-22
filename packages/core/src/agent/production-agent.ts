@@ -89,6 +89,7 @@ import {
   type ReasoningEffort,
 } from "../shared/reasoning-effort.js";
 import { isAgentActionStopError } from "../action.js";
+import { describeGuaranteesForTool } from "../action-guarantees.js";
 import {
   writeLedgerEntry,
   readLedgerEntry,
@@ -335,6 +336,12 @@ export interface ActionEntry {
   /** If true, completion does NOT trigger a screen-refresh change event.
    *  Set automatically by `defineAction` when `http.method === "GET"`. */
   readOnly?: boolean;
+  /** Machine-checkable promises this action makes about its behavior
+   *  (`read-only`, `idempotent`, `reversible`, `access-scoped`). Set by
+   *  `defineAction`'s `guarantees` option and appended to the model-facing tool
+   *  description in `actionsToEngineTools` so the agent can reason about safety
+   *  before invoking. See `packages/core/src/action-guarantees.ts`. */
+  guarantees?: readonly import("../action-guarantees.js").ActionGuarantee[];
   /** If true, this action can run concurrently with other same-turn
    *  read-only/parallel-safe tool calls. Only use for actions that handle
    *  their own write ordering and idempotency. */
@@ -1840,7 +1847,10 @@ export function actionsToEngineTools(
     }
     tools.push({
       name,
-      description: entry.tool.description,
+      description: describeGuaranteesForTool(
+        entry.tool.description,
+        entry.guarantees,
+      ),
       inputSchema,
     });
   }

@@ -35,6 +35,13 @@ export default defineAction({
       ),
   }),
   http: { method: "POST" },
+  // Machine-checkable promises the autonomous agent can rely on when choosing
+  // this tool over a hard `delete-dashboard`:
+  //  - `reversible`: archiving soft-deletes; running again with `archived:false`
+  //    restores the dashboard, so the effect can always be undone.
+  //  - `access-scoped`: `resolveScope()` requires an authenticated user and
+  //    scopes the read/write to their org+email via the dashboards store.
+  guarantees: ["reversible", "access-scoped"],
   run: async (args) => {
     const ctx = resolveScope();
     const dash = args.archived

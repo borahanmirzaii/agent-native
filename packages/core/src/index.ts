@@ -42,6 +42,15 @@ export {
   type ActionMcpAppResourceMeta,
 } from "./action.js";
 export {
+  ACTION_GUARANTEES,
+  normalizeGuarantees,
+  describeGuaranteesForTool,
+  assertActionGuarantee,
+  type ActionGuarantee,
+  type GuaranteedAction,
+  type GuaranteeProbe,
+} from "./action-guarantees.js";
+export {
   embedApp,
   MCP_APP_REQUEST_ORIGIN_CSP_SOURCE,
   type EmbedAppOptions,
